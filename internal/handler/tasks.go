@@ -30,7 +30,7 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	// Check project access
 	if !h.canAccessProject(r, projectID, userID) {
-		response.NotFound(w)
+		response.Forbidden(w)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Project must exist and user must have access
 	if !h.canAccessProject(r, projectID, userID) {
-		response.NotFound(w)
+		response.Forbidden(w)
 		return
 	}
 
@@ -169,11 +169,10 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	taskID := chi.URLParam(r, "id")
 
-	var projectID, taskAssigneeID string
-	var assigneeIDPtr *string
+	var projectID string
 	err := h.db.QueryRow(r.Context(),
-		`SELECT project_id, COALESCE(assignee_id::text, '') FROM tasks WHERE id=$1`, taskID,
-	).Scan(&projectID, &taskAssigneeID)
+		`SELECT project_id FROM tasks WHERE id=$1`, taskID,
+	).Scan(&projectID)
 	if err == pgx.ErrNoRows {
 		response.NotFound(w)
 		return
@@ -183,7 +182,6 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
-	_ = assigneeIDPtr
 
 	// Check access: must be project member
 	if !h.canAccessProject(r, projectID, userID) {
